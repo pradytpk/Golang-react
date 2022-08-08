@@ -1,17 +1,20 @@
-Frontend
-  React 
+# Frontend
+  ## React
     simple functional component
 
-Backend
-  Go
+# Backend
+  ## Go
     Router
-    MongoDB packages
-DB
-  MongoDB
+    functions
+    
+# DB
+MongoDB
 
-Package Intialization
-  github.com/pradytpk/go-react-calorie/routes
+# Package Intialization
+  github.com/pradytpk/go-react-calorie/routes<br>
 
-
-VS code Extension
+# VS code Extension
   tabnine- autocomplete 
+
+# Acknowledgement
+  https://www.youtube.com/c/AkhilSharmaTech <br>

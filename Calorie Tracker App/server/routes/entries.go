@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pradytpk/go-react-calorie/models"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -15,7 +16,29 @@ import (
 var entryCollection *mongo.Collection = OpenCollection(Client, "calories")
 
 func AddEntry(c *gin.Context) {
-
+	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+	var entry models.Entry
+	if err := c.BindJSON(&entry); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		fmt.Println(err)
+		return
+	}
+	validationErr := validate.Struct(entry)
+	if validationErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": validationErr.Error()})
+		fmt.Println(validationErr)
+		return
+	}
+	entry.ID = primitive.NewObjectID()
+	_, inserErr := entryCollection.InsertOne(ctx, entry)
+	if inserErr != nil {
+		msg := fmt.Sprintf("order item wanot created")
+		c.JSON(http.StatusBadRequest, gin.H{"error": msg})
+		fmt.Println(inserErr)
+		return
+	}
+	defer cancel()
+	c.JSON(http.StatusOK, entry)
 }
 
 func GetEntries(c *gin.Context) {
@@ -41,7 +64,23 @@ func GetEntries(c *gin.Context) {
 }
 
 func GetEntriesByIngredient(c *gin.Context) {
-
+	ingredient := c.Params.ByName("id")
+	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+	var entries []bson.M
+	cursor, err := entryCollection.Find(ctx, bson.M{"ingredients": ingredient})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		fmt.Println(err)
+		return
+	}
+	if err = cursor.All(ctx, &entries); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		fmt.Println(err)
+		return
+	}
+	defer cancel()
+	fmt.Println(entries)
+	c.JSON(http.StatusOK, ingredient)
 }
 
 func GetEntryById(c *gin.Context) {
@@ -59,11 +98,62 @@ func GetEntryById(c *gin.Context) {
 }
 
 func UpdateIngredient(c *gin.Context) {
-
+	EntryID := c.Params.ByName("id")
+	docID, _ := primitive.ObjectIDFromHex(EntryID)
+	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+	type Ingredient struct {
+		Ingredients *string `json:"Ingredients"`
+	}
+	var ingredient Ingredient
+	if err := c.BindJSON(&ingredient); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		fmt.Println(err)
+		return
+	}
+	result, err := entryCollection.UpdateOne(ctx, bson.M{"_id": docID},
+		bson.D{{"$set": bson.D{{"ingredients", ingredient.Ingredients}}}},
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		fmt.Println(err)
+		return
+	}
+	defer cancel()
+	c.JSON(http.StatusOK, result.ModifiedCount)
 }
 
 func UpdateEntry(c *gin.Context) {
-
+	EntryID := c.Params.ByName("id")
+	docID, _ := primitive.ObjectIDFromHex(EntryID)
+	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+	var entry models.Entry
+	if err := c.BindJSON(&entry); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		fmt.Println(err)
+		return
+	}
+	validationErr := validate.Struct(entry)
+	if validationErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": validationErr.Error()})
+		fmt.Println(validationErr)
+		return
+	}
+	result, err := entryCollection.ReplaceOne(
+		ctx,
+		bson.M{"_id": docID},
+		bson.M{"dish": entry.Dish,
+			"fat":        entry.Fat,
+			"ingredient": entry.Ingredients,
+			"calories":   entry.Calories,
+		},
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		fmt.Println(err)
+		return
+	}
+	defer cancel()
+	c.JSON(http.StatusOK, result.ModifiedCount)
 }
 
 func DeleteEntry(c *gin.Context) {
