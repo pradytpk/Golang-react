@@ -7,7 +7,7 @@ env:
 jobs:
   run_code_checks:
     runs-on:ubuntu-latest
-    steps:
+  steps:
     - name: Set up MySQL
       run : |
         sudo /etc/init.d/mysql start
